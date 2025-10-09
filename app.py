@@ -1,62 +1,89 @@
 from flask import Flask,request
+from flask_sqlalchemy import SQLAlchemy
+from schemas import ItemSchema, StoreSchema
 
 app=Flask(__name__)
 
-stores = [
-    {
-        'name': 'Switches',
-        'items': [
-            {'name': 'Switch ESTAR', 'ip ': "192.168.10.1"} 
-        ]
-    },
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-        {
-        'name': 'Firewalls',
-        'items': [
-            {'name': 'Firewall ESTAR', 'ip ': "192.168.100.1"} 
-        ]
-    },
-]
+db = SQLAlchemy(app)
 
 
-@app.get("/store") #http://127.0.0.1:5000/store
+class Store(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False, unique=True)
+    items = db.relationship('Item', backref='store', lazy=True)
+
+class Item(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False)
+    ip = db.Column(db.String(40), nullable=False)
+    store_id = db.Column(db.Integer, db.ForeignKey('store.id'), nullable=False)
+
+
+item_schema = ItemSchema()
+store_schema = StoreSchema()
+
+
+@app.get("/store")
 def get_stores():
-    return {"stores": stores}
+    stores = Store.query.all()
+    return {"stores": [
+        {"name": store.name, "items": [{"name": item.name, "ip": item.ip} for item in store.items]}
+        for store in stores
+    ]}
 
-@app.get("/store/<string:name>") #http://127.0.0.1:5000/store/
-def get_store(name):
-    for store in stores:
-        if store['name'] == name:
-            return store
-    return {"message": "store not found"}, 404
+# @app.get("/store/<string:name>") #http://127.0.0.1:5000/store/
+# def get_store(name):
 
-@app.get("/store/<string:name>/item") #http://127.0.0.1:5000/store/
-def get_item_in_store(name):
-    for store in stores:
-        if store['name'] == name:
-            return {"items": store['items']}
-    return {"message": "store not found"}, 404
+#     for store in stores:
+#         if store['name'] == name:
+#             return store
+#     return {"message": "store not found"}, 404
+
+# @app.get("/store/<string:name>/item") #http://127.0.0.1:5000/store/
+# def get_item_in_store(name):
+#     for store in stores:
+#         if store['name'] == name:
+#             return {"items": store['items']}
+#     return {"message": "store not found"}, 404
 
 
 @app.post("/store")
 def crate_store():
     request_data = request.get_json()
-    new_store = {
-        'name': request_data['name'],
-        'items': request_data['items']
-    }
-    stores.append(new_store)
-    return new_store, 201
+    #vlidate incoming data
+    errors = store_schema.validate(request_data)
+    if errors:
+        return {"message": "Validation errors", "errors": errors}, 400
+    
+    new_store = Store(name=request_data['name'])
+    db.session.add(new_store)
+    db.session.commit()
+
+    return {"name": new_store.name, "items": []}, 201
 
 @app.post("/store/<string:name>/item")
 def crate_item(name):
     request_data = request.get_json()
-    for store in stores:
-        if store['name'] == name:
-            new_item = {
-                'name': request_data['name'],
-                'ip': request_data['ip']
-            }
-            store['items'].append(new_item)
-            return new_item, 201
-    return {"message": "store not found"}, 404
+    #validate incoming data
+    errors = item_schema.validate(request_data)
+    if errors:
+        return {"message": "Validation errors", "errors": errors}, 400
+    store = Store.query.filter_by(name=name).first()
+    if not store:
+        return {"message": "store not found"}, 404
+
+    new_item = Item(name=request_data['name'], ip=request_data['ip'], store_id=store.id)
+    db.session.add(new_item)
+    db.session.commit()
+
+    return {"name": new_item.name, "ip": new_item.ip}, 201
+
+with app.app_context():
+    db.create_all()
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
+
