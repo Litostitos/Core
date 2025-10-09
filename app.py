@@ -21,7 +21,7 @@ class Item(db.Model):
     ip = db.Column(db.String(40), nullable=False)
     store_id = db.Column(db.Integer, db.ForeignKey('store.id'), nullable=False)
 
-
+# Initialize schemas
 item_schema = ItemSchema()
 store_schema = StoreSchema()
 
