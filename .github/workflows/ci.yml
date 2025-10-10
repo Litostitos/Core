@@ -29,3 +29,9 @@ jobs:
 
     - name: Build Docker image
       run: docker build -t flask-app .
+    - name: Log in to GitHub Container Registry
+      run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+    - name: Push Docker image to GitHub Container Registry
+      run: |
+        docker tag flask-app:latest ghcr.io/${{ github.repository_owner }}/flask-app:latest
+        docker push ghcr.io/${{ github.repository_owner }}/flask-app:latest
