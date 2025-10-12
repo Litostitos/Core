@@ -1,6 +1,7 @@
 from flask import Flask,request
 from flask_sqlalchemy import SQLAlchemy
 from schemas import ItemSchema, StoreSchema
+import os
 
 app=Flask(__name__)
 
@@ -34,20 +35,6 @@ def get_stores():
         for store in stores
     ]}
 
-# @app.get("/store/<string:name>") #http://127.0.0.1:5000/store/
-# def get_store(name):
-
-#     for store in stores:
-#         if store['name'] == name:
-#             return store
-#     return {"message": "store not found"}, 404
-
-# @app.get("/store/<string:name>/item") #http://127.0.0.1:5000/store/
-# def get_item_in_store(name):
-#     for store in stores:
-#         if store['name'] == name:
-#             return {"items": store['items']}
-#     return {"message": "store not found"}, 404
 
 
 @app.post("/store")
@@ -83,6 +70,8 @@ def crate_item(name):
 
 with app.app_context():
     db.create_all()
+    
+print("Resolved DB path:", os.path.join(app.instance_path, "data.db"))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
