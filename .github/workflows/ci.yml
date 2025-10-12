@@ -33,5 +33,5 @@ jobs:
       run: echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
     - name: Push Docker image to GitHub Container Registry
       run: |
-        docker tag flask-app-v1 ghcr.io/litostitos/flask-app:latest
+        docker tag flask-app ghcr.io/litostitos/flask-app:latest
         docker push ghcr.io/litostitos/flask-app:latest
