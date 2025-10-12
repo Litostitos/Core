@@ -2,6 +2,7 @@ version: "3"
 services:
   web:
     build: .
+    container_name: test1dockercompose 
     ports:
       - "5005:5000"
     volumes:
