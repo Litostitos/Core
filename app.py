@@ -70,8 +70,13 @@ def crate_item(name):
 
 with app.app_context():
     db.create_all()
-    
+
 print("Resolved DB path:", os.path.join(app.instance_path, "data.db"))
+#Temporary debug
+@app.route("/debug/stores")
+def debug_stores():
+    stores = Store.query.all()
+    return {"stores": [store.name for store in stores]}
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
