@@ -2,9 +2,10 @@ version: "3"
 services:
   web:
     build: .
-    container_name: test1dockercompose 
+    container_name: myflaskapp 
+    image: ghcr.io/litostitos/flask-app
     ports:
-      - "5005:5000"
+      - "5009:5000"
     volumes:
       - .:/app  
       - ./instance:/app/instance

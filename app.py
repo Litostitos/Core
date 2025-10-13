@@ -52,7 +52,7 @@ def crate_store():
 
     return {"name": new_store.name, "items": []}, 201
 
-@app.post("/store/<string:name>/item")
+@app.post("/store/<string:name>/item", methods=["POST"])
 def crate_item(name):
     request_data = request.get_json()
     #validate incoming data
