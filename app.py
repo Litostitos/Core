@@ -28,6 +28,10 @@ item_schema = ItemSchema()
 store_schema = StoreSchema()
 
 
+@app.get("/")
+def welcome():
+    return {"message": "Welcome!"}
+
 @app.get("/store")
 def get_stores():
     stores = Store.query.all()
