@@ -35,5 +35,5 @@ jobs:
 
     - name: Tag and Push Docker image to GitHub Container Registry
       run: |
-        docker tag flask-app ghcr.io/litostitos/flask-app:latest
+        docker tag image_v1.1 ghcr.io/litostitos/image_v1.1:latest
         docker push ghcr.io/litostitos/image_v1.1:latest
