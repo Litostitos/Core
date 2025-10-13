@@ -52,7 +52,7 @@ def crate_store():
 
     return {"name": new_store.name, "items": []}, 201
 
-@app.post("/store/<string:name>/item", methods=["POST"])
+@app.post("/store/<string:name>/item")
 def crate_item(name):
     request_data = request.get_json()
     #validate incoming data
@@ -61,7 +61,7 @@ def crate_item(name):
         return {"message": "Validation errors", "errors": errors}, 400
     store = Store.query.filter_by(name=name).first()
     if not store:
-        return {"message": "store not found"}, 404
+        return {"message": "storee not found"}, 404
 
     new_item = Item(name=request_data['name'], ip=request_data['ip'], store_id=store.id)
     db.session.add(new_item)
