@@ -28,12 +28,12 @@ jobs:
       run: pytest
 
     - name: Build Docker image
-      run: docker build -t image_v1.1 .
+      run: docker build -t image_v1.2 .
 
     - name: Log in to GitHub Container Registry
       run: echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
     - name: Tag and Push Docker image to GitHub Container Registry
       run: |
-        docker tag flask-app ghcr.io/litostitos/flask-app:latest
-        docker push ghcr.io/litostitos/image_v1.1:latest
+        docker tag image_v1.2 ghcr.io/litostitos/image_v1.2:latest
+        docker push ghcr.io/litostitos/image_v1.2:latest
