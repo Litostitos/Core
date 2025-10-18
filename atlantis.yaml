@@ -1,6 +1,7 @@
 version: 3
+
 workflows:
-  custom:
+  aws-workflow:
     plan:
       steps:
         - env:
@@ -24,4 +25,4 @@ projects:
   autoplan:
     when_modified: ["*.tf", "*.tfvars"]
     enabled: true
-  workflow: custom
+  workflow: aws-workflow
