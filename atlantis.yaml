@@ -1,4 +1,22 @@
 version: 3
+workflows:
+  custom:
+    plan:
+      steps:
+        - env:
+            name: AWS_ACCESS_KEY_ID
+            value: ${AWS_ACCESS_KEY_ID}
+        - env:
+            name: AWS_SECRET_ACCESS_KEY
+            value: ${AWS_SECRET_ACCESS_KEY}
+        - env:
+            name: AWS_DEFAULT_REGION
+            value: ${AWS_DEFAULT_REGION}
+        - run: terraform plan -out plan.tfplan
+    apply:
+      steps:
+        - run: terraform apply plan.tfplan
+
 projects:
 - name: flask-app
   dir: flask-terraform
@@ -6,7 +24,4 @@ projects:
   autoplan:
     when_modified: ["*.tf", "*.tfvars"]
     enabled: true
-  terraform_env_vars:
-    - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-    - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-    - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+  workflow: custom
