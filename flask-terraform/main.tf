@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "eu-north-1b"
+  region = "eu-north-1"
 }
 
 resource "aws_instance" "example" {
@@ -7,7 +7,7 @@ resource "aws_instance" "example" {
   instance_type = "t3.micro"
 
   tags = {
-    Name        = "My Atlantis Test 23"
+    Name        = "My Atlantis V1.2"
     Environment = "development1"
     Owner       = "Atlantis-Demo"
   }
