@@ -1,0 +1,26 @@
+- hosts: web
+  become: yes
+  tasks:
+    - name: Install Docker
+      yum:
+        name: docker
+        state: present
+
+    - name: Start Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Pull Flask app image
+      docker_image:
+        name: ghcr.io/litostitos/image_v1.1
+        source: pull
+
+    - name: Run Flask app container
+      docker_container:
+        name: flask-app
+        image: ghcr.io/litostitos/image_v1.1
+        state: started
+        ports:
+          - "5000:5000"
