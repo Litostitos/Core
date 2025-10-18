@@ -1,8 +1,12 @@
 version: 3
 projects:
-  - name: core
-    dir: flask-terraform
-    workspace: default
-    autoplan:
-      when_modified: ["*.tf", "*.tfvars"]
-      enabled: true
+- name: flask-app
+  dir: flask-terraform
+  workspace: default
+  autoplan:
+    when_modified: ["*.tf", "*.tfvars"]
+    enabled: true
+  terraform_env_vars:
+    - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+    - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
