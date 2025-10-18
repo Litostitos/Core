@@ -1,13 +1,13 @@
 provider "aws" {
-  region = "eu-west-1"
+  region = "eu-north-1b"
 }
 
 resource "aws_instance" "example" {
-  ami           = "ami-0c55b159cbfafe1f0" # Replace with your preferred AMI
-  instance_type = "t2.micro"
+  ami           = "ami-04c08fd8aa14af291" # Replace with your preferred AMI
+  instance_type = "t3.micro"
 
   tags = {
-    Name        = "First-Instance-Development-Test"
+    Name        = "My Atlantis Test 1"
     Environment = "development1"
     Owner       = "Atlantis-Demo"
   }
