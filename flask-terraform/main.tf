@@ -7,7 +7,7 @@ resource "aws_instance" "example" {
   instance_type = "t3.micro"
 
   tags = {
-    Name        = "My Atlantis Test 1"
+    Name        = "My Atlantis Test 23"
     Environment = "development1"
     Owner       = "Atlantis-Demo"
   }
