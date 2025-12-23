@@ -35,5 +35,5 @@ jobs:
 
     - name: Tag and Push Docker image to GitHub Container Registry
       run: |
-        docker tag image_v1.2 ghcr.io/litostitos/image_v1.2:latest
-        docker push ghcr.io/litostitos/image_v1.2:latest
+        docker tag image_v1.2 ghcr.io/litostitos/core-api:latest
+        docker push ghcr.io/litostitos/core-api:latest
