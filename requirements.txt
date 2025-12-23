@@ -4,3 +4,4 @@ flask_sqlalchemy
 marshmallow
 pytest
 flask-jwt-extended
+flask-restx
