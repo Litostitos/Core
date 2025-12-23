@@ -1,4 +1,4 @@
-from flask import Flask, request, g, jsonify
+from flask import Flask, request, g
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -19,6 +19,7 @@ from flask_restx import Api, Resource, fields, Namespace
 # -----------------------------------------------------------------------------
 app = Flask(__name__)
 
+# Swagger JWT Authorization
 authorizations = {
     "BearerAuth": {
         "type": "apiKey",
@@ -36,7 +37,6 @@ api = Api(
     doc="/swagger",
     authorizations=authorizations,
     security="BearerAuth"
-
 )
 
 # Namespaces
@@ -136,6 +136,9 @@ def check_credentials(username, password):
     return check_password_hash(pw_hash, password)
 
 
+# -----------------------------------------------------------------------------
+# FIX: Decorator without jsonify() (prevents Swagger 500 errors)
+# -----------------------------------------------------------------------------
 def require_role(min_role):
     def decorator(f):
         @wraps(f)
@@ -143,17 +146,17 @@ def require_role(min_role):
             try:
                 verify_jwt_in_request()
             except Exception as e:
-                return ({"message": "Missing or invalid token", "error": str(e)}), 401
+                return {"message": "Missing or invalid token", "error": str(e)}, 401
 
             identity = get_jwt_identity()
             if not identity:
-                return ({"message": "Invalid token (no identity)"}), 401
+                return {"message": "Invalid token (no identity)"}, 401
 
             g.current_user = identity
             g.current_role = USER_ROLES.get(identity, "reader")
 
             if ROLE_HIERARCHY.get(g.current_role, 0) < ROLE_HIERARCHY.get(min_role, 0):
-                return ({"message": "Forbidden: insufficient role"}), 403
+                return {"message": "Forbidden: insufficient role"}, 403
 
             return f(*args, **kwargs)
         return wrapped
