@@ -1,7 +1,5 @@
-# ...existing code...
 from flask import Flask, request, g, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from schemas import ItemSchema, StoreSchema
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import os
@@ -14,9 +12,43 @@ from flask_jwt_extended import (
     get_jwt_identity,
 )
 
+from flask_restx import Api, Resource, fields, Namespace
+
+# -----------------------------------------------------------------------------
+# Flask + RESTX initialization
+# -----------------------------------------------------------------------------
 app = Flask(__name__)
 
-# JWT config - set a strong secret in env in production
+authorizations = {
+    "BearerAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'"
+    }
+}
+
+api = Api(
+    app,
+    version="1.0",
+    title="Core API",
+    description="API documentation (OpenAPI/Swagger) estilo DEVCOR",
+    doc="/swagger",
+    authorizations=authorizations,
+    security="BearerAuth"
+
+)
+
+# Namespaces
+auth_ns = Namespace("auth", description="Authentication operations")
+store_ns = Namespace("store", description="Store and item operations")
+
+api.add_namespace(auth_ns)
+api.add_namespace(store_ns)
+
+# -----------------------------------------------------------------------------
+# JWT configuration
+# -----------------------------------------------------------------------------
 app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY", "change-me-in-prod")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = datetime.timedelta(
     seconds=int(os.environ.get("JWT_ACCESS_EXPIRES_SECONDS", 60 * 60 * 8))
@@ -24,7 +56,9 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"] = datetime.timedelta(
 
 jwt = JWTManager(app)
 
-# ensure instance folder exists for sqlite file
+# -----------------------------------------------------------------------------
+# Database configuration
+# -----------------------------------------------------------------------------
 os.makedirs(app.instance_path, exist_ok=True)
 db_path = os.path.join(app.instance_path, "data.db")
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
@@ -32,7 +66,9 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
-
+# -----------------------------------------------------------------------------
+# Models (SQLAlchemy)
+# -----------------------------------------------------------------------------
 class Store(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False, unique=True)
@@ -53,17 +89,42 @@ class Item(db.Model):
     def to_dict(self):
         return {"name": self.name, "ip": self.ip}
 
+# -----------------------------------------------------------------------------
+# RESTX Models (OpenAPI)
+# -----------------------------------------------------------------------------
+login_model = auth_ns.model("Login", {
+    "username": fields.String(required=True),
+    "password": fields.String(required=True)
+})
 
-# Initialize schemas
-item_schema = ItemSchema()
-store_schema = StoreSchema()
+store_create_model = store_ns.model("StoreCreate", {
+    "name": fields.String(required=True)
+})
 
-# --- Authentication / Authorization (JWT) ---
+item_create_model = store_ns.model("ItemCreate", {
+    "name": fields.String(required=True),
+    "ip": fields.String(required=True)
+})
+
+store_model = store_ns.model("Store", {
+    "name": fields.String,
+    "items": fields.List(fields.Raw)
+})
+
+item_model = store_ns.model("Item", {
+    "name": fields.String,
+    "ip": fields.String
+})
+
+# -----------------------------------------------------------------------------
+# Authentication / Authorization
+# -----------------------------------------------------------------------------
 USERS = {
     "alice": generate_password_hash("readerpass"),
     "bob": generate_password_hash("writerpass"),
     "admin": generate_password_hash("adminpass"),
 }
+
 USER_ROLES = {"alice": "reader", "bob": "writer", "admin": "admin"}
 ROLE_HIERARCHY = {"reader": 10, "writer": 20, "admin": 30}
 
@@ -76,164 +137,160 @@ def check_credentials(username, password):
 
 
 def require_role(min_role):
-    """
-    Decorator: require a valid JWT and that the identity's role >= min_role.
-    """
     def decorator(f):
         @wraps(f)
         def wrapped(*args, **kwargs):
             try:
                 verify_jwt_in_request()
             except Exception as e:
-                return jsonify({"message": "Missing or invalid token", "error": str(e)}), 401
+                return ({"message": "Missing or invalid token", "error": str(e)}), 401
 
             identity = get_jwt_identity()
             if not identity:
-                return jsonify({"message": "Invalid token (no identity)"}), 401
+                return ({"message": "Invalid token (no identity)"}), 401
 
             g.current_user = identity
             g.current_role = USER_ROLES.get(identity, "reader")
 
             if ROLE_HIERARCHY.get(g.current_role, 0) < ROLE_HIERARCHY.get(min_role, 0):
-                return jsonify({"message": "Forbidden: insufficient role"}), 403
+                return ({"message": "Forbidden: insufficient role"}), 403
 
             return f(*args, **kwargs)
         return wrapped
     return decorator
 
+# -----------------------------------------------------------------------------
+# AUTH ENDPOINTS
+# -----------------------------------------------------------------------------
+@auth_ns.route("/login")
+class Login(Resource):
+    @auth_ns.expect(login_model)
+    @auth_ns.doc(description="Authenticate user and return JWT access token")
+    def post(self):
+        data = request.get_json() or {}
+        username = data.get("username")
+        password = data.get("password")
 
-# --- Routes ---
-@app.post("/auth/login")
-def auth_login():
-    """
-    POST /auth/login
-    JSON: { "username": "...", "password": "..." }
-    Returns access_token if credentials valid.
-    """
-    data = request.get_json() or {}
-    username = data.get("username")
-    password = data.get("password")
-    if not username or not password:
-        return jsonify({"message": "username and password required"}), 400
-    if not check_credentials(username, password):
-        return jsonify({"message": "invalid credentials"}), 401
+        if not username or not password:
+            return {"message": "username and password required"}, 400
+        if not check_credentials(username, password):
+            return {"message": "invalid credentials"}, 401
 
-    access_token = create_access_token(identity=username)
-    return (
-        jsonify({"access_token": access_token, "user": {"username": username, "role": USER_ROLES.get(username)}}),
-        200,
-    )
+        access_token = create_access_token(identity=username)
+        return {
+            "access_token": access_token,
+            "user": {"username": username, "role": USER_ROLES.get(username)}
+        }, 200
 
+# -----------------------------------------------------------------------------
+# STORE ENDPOINTS
+# -----------------------------------------------------------------------------
+@store_ns.route("/")
+class StoreList(Resource):
+    @require_role("reader")
+    @store_ns.marshal_list_with(store_model)
+    @store_ns.doc(description="Get all stores (reader or higher)")
+    def get(self):
+        stores = Store.query.all()
+        return [s.to_dict() for s in stores]
 
-@app.get("/")
-def welcome():
-    return {"message": "Welcome!"}
+    @require_role("writer")
+    @store_ns.expect(store_create_model)
+    @store_ns.marshal_with(store_model, code=201)
+    @store_ns.doc(description="Create a new store (writer or higher)")
+    def post(self):
+        data = request.get_json() or {}
+        name = data.get("name")
 
+        if not name:
+            return {"message": "name required"}, 400
+        if Store.query.filter_by(name=name).first():
+            return {"message": "store exists"}, 400
 
-@app.get("/store")
-@require_role("reader")
-def get_stores():
-    stores = Store.query.all()
-    return {"stores": [s.to_dict() for s in stores]}
-
-
-@app.post("/store")
-@require_role("writer")
-def crate_store():
-    request_data = request.get_json() or {}
-    errors = store_schema.validate(request_data)
-    if errors:
-        return {"message": "Validation errors", "errors": errors}, 400
-
-    name = request_data.get("name")
-    if not name:
-        return {"message": "name required"}, 400
-    if Store.query.filter_by(name=name).first():
-        return {"message": "store exists"}, 400
-
-    new_store = Store(name=name)
-    db.session.add(new_store)
-    db.session.commit()
-    return {"name": new_store.name, "items": []}, 201
+        new_store = Store(name=name)
+        db.session.add(new_store)
+        db.session.commit()
+        return new_store.to_dict(), 201
 
 
-@app.post("/store/<string:name>/item")
-@require_role("writer")
-def crate_item(name):
-    request_data = request.get_json() or {}
-    errors = item_schema.validate(request_data)
-    if errors:
-        return {"message": "Validation errors", "errors": errors}, 400
-
-    store = Store.query.filter_by(name=name).first()
-    if not store:
-        return {"message": "store not found"}, 404
-
-    item_name = request_data.get("name")
-    ip = request_data.get("ip")
-    if not item_name or not ip:
-        return {"message": "name and ip required"}, 400
-
-    new_item = Item(name=item_name, ip=ip, store=store)
-    db.session.add(new_item)
-    db.session.commit()
-    return {"name": new_item.name, "ip": new_item.ip}, 201
-
-
-@app.route("/store/<string:name>", methods=["DELETE"])
-@require_role("admin")
-def delete_store(name):
-    store = Store.query.filter_by(name=name).first()
-    if not store:
-        return {"message": "Store not found"}, 404
-
-    db.session.delete(store)
-    db.session.commit()
-    return {"message": "Store deleted"}, 200
-
-
-@app.route("/store/<string:name>", methods=["PUT", "PATCH"])
-@require_role("writer")
-def rename_store(name):
-    try:
-        if request.is_json:
-            data = request.get_json()
-        else:
-            data = request.form.to_dict()
-        new_name = data.get("name")
-        if not new_name:
-            return jsonify({"message": "new name required"}), 400
+@store_ns.route("/<string:name>/item")
+class ItemCreate(Resource):
+    @require_role("writer")
+    @store_ns.expect(item_create_model)
+    @store_ns.marshal_with(item_model, code=201)
+    @store_ns.doc(description="Create an item inside a store (writer or higher)")
+    def post(self, name):
+        data = request.get_json() or {}
 
         store = Store.query.filter_by(name=name).first()
         if not store:
-            return jsonify({"message": "store not found"}), 404
+            return {"message": "store not found"}, 404
+
+        item_name = data.get("name")
+        ip = data.get("ip")
+
+        if not item_name or not ip:
+            return {"message": "name and ip required"}, 400
+
+        new_item = Item(name=item_name, ip=ip, store=store)
+        db.session.add(new_item)
+        db.session.commit()
+        return new_item.to_dict(), 201
+
+
+@store_ns.route("/<string:name>")
+class StoreOperations(Resource):
+    @require_role("admin")
+    @store_ns.doc(description="Delete a store (admin only)")
+    def delete(self, name):
+        store = Store.query.filter_by(name=name).first()
+        if not store:
+            return {"message": "Store not found"}, 404
+
+        db.session.delete(store)
+        db.session.commit()
+        return {"message": "Store deleted"}, 200
+
+    @require_role("writer")
+    @store_ns.doc(description="Rename a store (writer or higher)")
+    def put(self, name):
+        data = request.get_json() or {}
+        new_name = data.get("name")
+
+        if not new_name:
+            return {"message": "new name required"}, 400
+
+        store = Store.query.filter_by(name=name).first()
+        if not store:
+            return {"message": "store not found"}, 404
 
         if Store.query.filter_by(name=new_name).first():
-            return jsonify({"message": "a store with the new name already exists"}), 400
+            return {"message": "a store with the new name already exists"}, 400
 
         store.name = new_name
         db.session.commit()
 
         refreshed = Store.query.get(store.id)
-        return jsonify(refreshed.to_dict()), 200
+        return refreshed.to_dict(), 200
 
-    except Exception as e:
-        app.logger.error("Error renaming store: %s", str(e))
-        return jsonify({"message": "internal server error"}), 500
+# -----------------------------------------------------------------------------
+# DEBUG ENDPOINT
+# -----------------------------------------------------------------------------
+@store_ns.route("/debug/list")
+class DebugStores(Resource):
+    def get(self):
+        stores = Store.query.all()
+        return {"stores": [s.name for s in stores]}
 
-
-# Temporary debug
-@app.route("/debug/stores")
-def debug_stores():
-    stores = Store.query.all()
-    return {"stores": [store.name for store in stores]}
-
-
-# Initialize DB and run
+# -----------------------------------------------------------------------------
+# Initialize DB
+# -----------------------------------------------------------------------------
 with app.app_context():
     db.create_all()
 
+# -----------------------------------------------------------------------------
+# Run
+# -----------------------------------------------------------------------------
 if __name__ == "__main__":
     print("Resolved DB path:", db_path)
     app.run(host="0.0.0.0", port=5000, debug=True)
-# ...existing code...
