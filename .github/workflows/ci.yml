@@ -28,12 +28,12 @@ jobs:
       run: echo "Skipping tests"
 
     - name: Build Docker image
-      run: docker build -t image_v1.2 .
+      run: docker build -t core-api-workflow_2.0 .
 
     - name: Log in to GitHub Container Registry
       run: echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
     - name: Tag and Push Docker image to GitHub Container Registry
       run: |
-        docker tag image_v1.2 ghcr.io/litostitos/core-api:latest
+        docker tag core-api-workflow_2.0 ghcr.io/litostitos/core-api:latest
         docker push ghcr.io/litostitos/core-api:latest
