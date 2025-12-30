@@ -31,6 +31,7 @@ authorizations = {
 
 api = Api(
     app,
+    prefix="/api",
     version="1.0",
     title="Core API",
     description="API documentation (OpenAPI/Swagger) estilo DEVCOR",
