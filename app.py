@@ -186,6 +186,10 @@ class Login(Resource):
         }, 200
 
 # -----------------------------------------------------------------------------
+@app.get("/")
+def welcome():
+    """Simple root welcome message."""
+    return {"message": "Welcome to Core API"}, 200
 # STORE ENDPOINTS
 # -----------------------------------------------------------------------------
 @store_ns.route("/")
