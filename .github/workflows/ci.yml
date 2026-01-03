@@ -43,7 +43,7 @@ jobs:
 # Added job: deploy-local (runs on a self-hosted runner labeled "local")
   deploy-local:
     name: Deploy to local machine (self-hosted)
-    runs-on: [self-hosted, linux, x64, local]   # requires a self-hosted runner with label "local"
+    runs-on: [self-hosted, DESKTOP-TH1UU9B]   # requires a self-hosted runner with label "local"
     needs: build-and-test
 
     steps:
