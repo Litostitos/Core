@@ -78,7 +78,21 @@ jobs:
 
     - name: Run Ansible playbook against localhost
       run: |
-        ansible-playbook -i inventory.ini ansible/playbook.yml \
+        set -e
+        echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+        pwd
+        echo "Listing repo root:"
+        ls -la
+        echo "Listing ansible/ directory (if exists):"
+        ls -la ./ansible || true
+
+        PLAYBOOK="$GITHUB_WORKSPACE/ansible/playbook.yml"
+        if [ ! -f "$PLAYBOOK" ]; then
+          echo "ERROR: playbook not found at $PLAYBOOK"
+          exit 1
+        fi
+
+        ansible-playbook -i inventory.ini "$PLAYBOOK" \
           --extra-vars "ghcr_user=${{ secrets.GHCR_USER }} ghcr_pat=${{ secrets.GHCR_PAT }} image_tag=latest" -vvvv
       # ejecuta el playbook en la máquina local; usa secrets para credenciales de GHCR si son necesarias
 # ...existing code...
