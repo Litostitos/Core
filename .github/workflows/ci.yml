@@ -55,7 +55,7 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-      # prepara Python en el runner local
+      # prepara Python en el runner local yes
 
     - name: Install Ansible and collections
       run: |
