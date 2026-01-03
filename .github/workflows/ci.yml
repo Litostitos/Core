@@ -1,3 +1,4 @@
+# ...existing code...
 name: CI
 
 on:
@@ -37,3 +38,47 @@ jobs:
       run: |
         docker tag core-api-workflow_2.0 ghcr.io/litostitos/core-api:latest
         docker push ghcr.io/litostitos/core-api:latest
+
+# ...existing code...
+# Added job: deploy-local (runs on a self-hosted runner labeled "local")
+  deploy-local:
+    name: Deploy to local machine (self-hosted)
+    runs-on: [self-hosted, linux, x64, local]   # requires a self-hosted runner with label "local"
+    needs: build-and-test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      # obtiene el repo para ejecutar el playbook localmente
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+      # prepara Python en el runner local
+
+    - name: Install Ansible and collections
+      run: |
+        python -m pip install --upgrade pip
+        pip install ansible ansible-core
+        ansible-galaxy collection install community.docker
+      # instala Ansible y la colección community.docker en el runner
+
+    - name: Ensure docker SDK is available on target (local)
+      run: python -m pip install docker
+      # instala el SDK Python 'docker' necesario para los módulos de community.docker
+
+    - name: Write inventory for localhost (connection=local)
+      run: |
+        cat > inventory.ini <<EOF
+        [web]
+        localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
+        EOF
+      # Inventory que hace que Ansible ejecute las tareas en local sin usar SSH
+
+    - name: Run Ansible playbook against localhost
+      run: |
+        ansible-playbook -i inventory.ini ansible/playbook.yml \
+          --extra-vars "ghcr_user=${{ secrets.GHCR_USER }} ghcr_pat=${{ secrets.GHCR_PAT }} image_tag=latest" -vvvv
+      # ejecuta el playbook en la máquina local; usa secrets para credenciales de GHCR si son necesarias
+# ...existing code...
