@@ -71,8 +71,8 @@ jobs:
     - name: Write inventory for localhost (connection=local)
       run: |
         # crear un inventario específico para este job para no usar el inventory del repo
-        cat > "$GITHUB_WORKSPACE/inventory_local.ini" <<EOF
-        [web]
+        cat > "$GITHUB_WORKSPACE/inventory.ini" <<EOF
+        [local]
         localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
         EOF
       # Inventory que hace que Ansible ejecute las tareas en local sin usar SSH
@@ -97,7 +97,7 @@ jobs:
         fi
 
         echo "Using playbook: $PLAYBOOK"
-        ansible-playbook -i "$GITHUB_WORKSPACE/inventory_local.ini" "$PLAYBOOK" \
+        ansible-playbook -i "$GITHUB_WORKSPACE/inventory.ini" "$PLAYBOOK" \
           --extra-vars "ghcr_user=${{ secrets.GHCR_USER }} ghcr_pat=${{ secrets.GHCR_PAT }} image_tag=latest" -vvvv
       # comprueba y usa el playbook existente y fuerza inventario local
       # ejecuta el playbook en la máquina local; usa secrets para credenciales de GHCR si son necesarias
