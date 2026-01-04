@@ -109,7 +109,7 @@
 
     - name: Wait for core-api-1 to become available
       uri:
-        url: "http://127.0.0.1:5001/"
+        url: "http://127.0.0.1:5005/"
         status_code: 200
         timeout: 5
       register: http_check_1
@@ -120,7 +120,7 @@
 
     - name: Wait for core-api-2 to become available
       uri:
-        url: "http://127.0.0.1:5002/"
+        url: "http://127.0.0.1:5006/"
         status_code: 200
         timeout: 5
       register: http_check_2
