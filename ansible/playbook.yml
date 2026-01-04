@@ -101,10 +101,10 @@
       loop:
         - name: core-api-1
           ports:
-            - "5001:5000"
+            - "5005:5000"
         - name: core-api-2
           ports:
-            - "5002:5000"
+            - "5006:5000"
       tags: [deploy]
 
     - name: Wait for core-api-1 to become available
