@@ -1,0 +1,130 @@
+---
+- name: Deploy core-api container (install docker, pull image, run container)
+  hosts: local
+  become: true
+  gather_facts: yes
+
+  vars:
+    ghcr_user: ""
+    ghcr_pat: ""
+    image: "ghcr.io/litostitos/core-api:latest"
+    container_name: "core-api"
+    published_ports:
+      - "5000:5000"
+    env:
+      JWT_SECRET_KEY: "{{ jwt_secret | default('dev-secret') }}"
+    volumes:
+      - "/var/lib/core-api/instance:/app/instance"
+    restart_policy: "always"
+    docker_packages:
+      - docker.io
+      - python3-pip
+
+  tasks:
+    - name: Ensure apt cache is up-to-date (Debian/Ubuntu)
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_facts['pkg_mgr'] == 'apt'
+      tags: [install]
+
+    - name: Install docker & prerequisites (Debian/Ubuntu)
+      apt:
+        name: "{{ docker_packages }}"
+        state: present
+      when: ansible_facts['pkg_mgr'] == 'apt'
+      tags: [install]
+
+    - name: Ensure docker python SDK is installed
+      block:
+        - name: Install python3-docker via apt (Debian/Ubuntu)
+          apt:
+            name: python3-docker
+            state: present
+          when: ansible_facts['pkg_mgr'] == 'apt'
+
+        - name: " Fallback: install docker SDK via pip3"
+          pip:
+            name: docker
+            executable: pip3
+          when: ansible_facts['pkg_mgr'] != 'apt'
+      tags: [install]
+
+    - name: Ensure docker service is started
+      service:
+        name: docker
+        state: started
+        enabled: yes
+      tags: [install]
+
+    - name: Create host directory for persistent data
+      file:
+        path: /var/lib/core-api/instance
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      tags: [deploy]
+
+    - name: Login to GHCR (if credentials provided)
+      community.docker.docker_login:
+        registry_url: "ghcr.io"
+        username: "{{ ghcr_user }}"
+        password: "{{ ghcr_pat }}"
+      when: ghcr_user != "" and ghcr_pat != ""
+      tags: [deploy]
+
+    - name: Pull image
+      community.docker.docker_image:
+        name: "{{ image }}"
+        source: pull
+      tags: [deploy]
+
+    - name: Stop and remove existing container (if present)
+      community.docker.docker_container:
+        name: "{{ container_name }}"
+        state: absent
+        force_kill: true
+      tags: [deploy]
+
+    - name: Start containers
+      community.docker.docker_container:
+        name: "{{ item.name }}"
+        image: "{{ item.image | default(image) }}"
+        state: started
+        recreate: true
+        restart_policy: "{{ restart_policy }}"
+        published_ports: "{{ item.ports }}"
+        env: "{{ item.env | default(env) }}"
+        volumes: "{{ item.volumes | default(volumes) }}"
+        pull: yes
+      loop:
+        - name: core-api-1
+          ports:
+            - "5001:5000"
+        - name: core-api-2
+          ports:
+            - "5002:5000"
+      tags: [deploy]
+
+    - name: Wait for core-api-1 to become available
+      uri:
+        url: "http://127.0.0.1:5001/"
+        status_code: 200
+        timeout: 5
+      register: http_check_1
+      retries: 10
+      delay: 2
+      until: http_check_1.status == 200
+      tags: [deploy]
+
+    - name: Wait for core-api-2 to become available
+      uri:
+        url: "http://127.0.0.1:5002/"
+        status_code: 200
+        timeout: 5
+      register: http_check_2
+      retries: 10
+      delay: 2
+      until: http_check_2.status == 200
+      tags: [deploy]
