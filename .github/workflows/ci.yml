@@ -70,7 +70,8 @@ jobs:
 
     - name: Write inventory for localhost (connection=local)
       run: |
-        cat > inventory.ini <<EOF
+        # crear un inventario específico para este job para no usar el inventory del repo
+        cat > "$GITHUB_WORKSPACE/inventory_local.ini" <<EOF
         [web]
         localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
         EOF
@@ -81,18 +82,23 @@ jobs:
         set -e
         echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
         pwd
-        echo "Listing repo root:"
-        ls -la
-        echo "Listing ansible/ directory (if exists):"
-        ls -la ./ansible || true
+        ls -la "$GITHUB_WORKSPACE"
 
-        PLAYBOOK="$GITHUB_WORKSPACE/ansible/playbook.yml"
-        if [ ! -f "$PLAYBOOK" ]; then
-          echo "ERROR: playbook not found at $PLAYBOOK"
+        # prefer the playbook in ansible/ directory
+        if [ -f "$GITHUB_WORKSPACE/ansible/playbook.yml" ]; then
+          PLAYBOOK="$GITHUB_WORKSPACE/ansible/playbook.yml"
+        elif [ -f "$GITHUB_WORKSPACE/playbook.yml" ]; then
+          PLAYBOOK="$GITHUB_WORKSPACE/playbook.yml"
+        elif [ -f "$GITHUB_WORKSPACE/deploy-flask.yml" ]; then
+          PLAYBOOK="$GITHUB_WORKSPACE/deploy-flask.yml"
+        else
+          echo "ERROR: no playbook found (looked for ansible/playbook.yml, playbook.yml, deploy-flask.yml)"
           exit 1
         fi
 
-        ansible-playbook -i inventory.ini "$PLAYBOOK" \
+        echo "Using playbook: $PLAYBOOK"
+        ansible-playbook -i "$GITHUB_WORKSPACE/inventory_local.ini" "$PLAYBOOK" \
           --extra-vars "ghcr_user=${{ secrets.GHCR_USER }} ghcr_pat=${{ secrets.GHCR_PAT }} image_tag=latest" -vvvv
+      # comprueba y usa el playbook existente y fuerza inventario local
       # ejecuta el playbook en la máquina local; usa secrets para credenciales de GHCR si son necesarias
 # ...existing code...
